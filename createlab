@@ -1,0 +1,22 @@
+#!/bin/bash
+
+# create the network resources for a virtual lab
+
+LABNAME=$1
+EXTNET=$2
+
+# create the project and evaluate the return to capture the id for later
+# using --or-show so the command doesn't fail on existing projects
+eval `openstack project create --or-show ${LABNAME} -f shell | grep '^id='`
+
+# create a network for the lab
+neutron net-create --tenant-id $id --provider:network_type vxlan ${LABNAME}-net
+neutron subnet-create --tenant-id $id --name ${LABNAME}-sn ${LABNAME}-net 192.168.0.0/24
+
+# create a router for the lab 
+# this privides clients on the network have NAT exit point without needing a public IP
+# the penalty is it consumes a floating IP, so is wasteful for small deployments
+neutron router-create --tenant-id $id ${LABNAME}-router
+neutron router-gateway-set ${LABNAME}-router $EXTNET
+neutron router-interface-add ${LABNAME}-router ${LABNAME}-sn
+
